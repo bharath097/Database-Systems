@@ -1,0 +1,46 @@
+-- Create or replace a function named 'leafpart' that takes two character varying parameters: 'upper_p' (major part) and 'sbrt' (subpart).
+-- It returns an integer value, which is the count of 'sbrt' parts found in the structure, considering the hierarchy.
+CREATE OR REPLACE FUNCTION leafpart(upper_p character varying, sbrt character varying) 
+RETURNS INTEGER AS $$ 
+DECLARE 
+    -- Declare a variable 'crt_p' to hold each row's values from the Part_Structure1 query
+    -- 'crt_p' will hold each row as we loop through the result set of the query
+    crt_p RECORD; 
+    
+    -- Declare a variable 'sbrt_ct' to accumulate the count of 'sbrt' parts
+    -- Initially set to 0, it will increment based on the parts we encounter
+    sbrt_ct INTEGER := 0; 
+    
+BEGIN 
+    -- Loop through all rows in Part_Structure1 where 'major_p' matches the given 'upper_p'
+    -- This means we're looking for subparts ('minor_p') that belong to the given major part ('upper_p')
+    -- The results are ordered by 'minor_p' to process the structure sequentially
+    FOR crt_p IN 
+        SELECT minor_p, qty 
+        FROM Part_Structure1 
+        WHERE major_p = upper_p 
+        ORDER BY minor_p 
+    LOOP 
+        -- If the current 'minor_p' matches the 'sbrt' part, increment the count ('sbrt_ct') by the quantity ('qty')
+        -- 'sbrt' represents the subpart we're looking for, and we add the quantity ('qty') to the total
+        IF crt_p.minor_p = sbrt THEN 
+            sbrt_ct := sbrt_ct + crt_p.qty; 
+        ELSE 
+            -- Otherwise, recursively call the leafpart function to process sub-parts under the current 'minor_p'
+            -- Multiply the quantity ('qty') of the current part by the result of the recursive call
+            -- This helps accumulate the correct count of 'sbrt' parts, considering the hierarchical structure
+            sbrt_ct := sbrt_ct + crt_p.qty * leafpart(crt_p.minor_p, sbrt); 
+        END IF; 
+    END LOOP; 
+    
+    -- Return the final accumulated count of 'sbrt' parts found under the provided 'upper_p'
+    -- This is the total count after processing all the subparts recursively
+    RETURN sbrt_ct; 
+END; 
+$$ 
+LANGUAGE plpgsql;
+
+-- Example of calling the leafpart function:
+-- Find the total count of 'P6' parts under 'P1' and 'P7' parts under 'P1'
+-- The function will recursively calculate the counts based on the structure in Part_Structure1
+SELECT leafpart('P1', 'P6') AS "P6", leafpart('P1', 'P7') AS "P7";

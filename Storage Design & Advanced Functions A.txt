@@ -1,0 +1,32 @@
+-- Create or replace a function named Traversal that takes a character varying type parameter 'upper_p'
+CREATE OR REPLACE FUNCTION Traversal(upper_p character varying) 
+RETURNS VOID AS $$ 
+DECLARE 
+    -- Declare a variable 'lower_p' to hold the minor part of the structure during traversal
+    lower_p character varying; 
+BEGIN 
+    -- Raise a notice with the value of 'upper_p', to indicate the current level/part being processed
+    -- This helps to track the function's progression during execution
+    RAISE NOTICE 'Currently processing: %', upper_p; 
+
+    -- Loop through all rows in Part_Structure1 where 'major_p' equals the provided 'upper_p'
+    -- It will order the results by 'minor_p' to maintain a certain order during traversal
+    FOR lower_p IN 
+        SELECT minor_p 
+        FROM Part_Structure1 
+        WHERE major_p = upper_p -- Filtering based on the input 'upper_p' (major part)
+        ORDER BY minor_p       -- Ordering the rows based on the 'minor_p' column (sub-part)
+    LOOP 
+        -- For each 'lower_p' found, recursively call the Traversal function to process it further
+        -- This ensures a recursive traversal down the hierarchy structure
+        PERFORM Traversal(lower_p); 
+    END LOOP; 
+
+    -- End of the current function execution for this particular 'upper_p'
+END; 
+$$ 
+LANGUAGE plpgsql;
+
+-- Call the Traversal function with the argument 'P1' to start the recursive process
+-- This initiates the traversal at the 'P1' level
+SELECT Traversal('P1');
